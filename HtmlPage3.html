@@ -1,0 +1,350 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <meta charset="utf-8" />
+    <style>
+      body{
+  background-color:	#F5F5F5;
+    text-align: center;
+  
+}
+
+
+.content {
+  width: 1250px;
+  height: 710px;
+  background-color: #ffffff;
+  margin: 30px auto;
+  padding-bottom: 100px;
+  box-shadow: 5px 5px lightgrey;
+ }
+
+text {
+  fill:black;
+  font-family: sans-serif;
+ }
+
+#title {
+  text-anchor: middle;  
+  font-size: 36px; 
+  font-weight: bold;
+}
+
+
+
+#description {
+   text-anchor: middle;  
+  font-size: 20px; 
+ 
+}
+
+.axis text {  
+  font-size: 14px;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: black;
+  shape-rendering: crispEdges;
+}
+
+
+.cell:hover {
+  stroke: black;
+  stroke-width: 1px;
+}
+
+text.axis-title {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+#legend text {
+  font-size: 16px;
+}
+
+#tooltip {
+  padding:10px;
+  position: absolute;
+  width: 100px;
+  text-align: center;
+  background:black;  
+  color:white;  
+  font: 14px sans-serif;
+  border-radius: 6px
+}
+
+    </style>
+
+    <script src='https://d3js.org/d3.v3.min.js'></script>
+    <script src="https://d3js.org/topojson.v1.min.js"></script>
+  
+
+</head>
+<body>
+    <div class="content" id="graph"></div>
+</body>
+</html>
+<script>
+    (function () {
+        var w = 1250;
+        var h = 910;
+
+        var ww = 1050;
+        var hh = 460;
+
+        var colorGraph = ["#313695", "#4575b4", "#74add1", "#abd9e9", "#e0f3f8", "#ffffbf", "#fee090", "#fdae61", "#f46d43", "#d73027", "#a50026"];
+
+        var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+        var url = "https://raw.githubusercontent.com/OxanaK/HeatMap/master/data.json";
+
+
+
+        d3.json(url, function (error, data) {
+            if (error) {
+                return;
+            }
+
+            var format = d3.format(",.2f");
+
+            var tooltip = d3.select("#graph")
+              .append("div")
+              .attr("class", "tooltip")
+              .attr("id", "tooltip")
+              .style("visibility", "hidden");
+
+
+            var svg = d3.select("div.content")
+              .append("svg")
+              .attr({
+                  width: w,
+                  height: h
+              })
+              .append("g");
+
+            svg.append("text")
+              .attr({
+                  id: "title",
+                  x: w / 2,
+                  y: 40
+              })
+              .text("Monthly Global Land-Surface Temperature");
+
+
+            svg.append("text")
+              .attr({
+                  id: "description",
+                  x: w / 2,
+                  y: 100
+              })
+              .text("1753 - 2015: base temperature " + data.baseTemperature + "℃");
+
+
+
+
+            var dataSet = data.monthlyVariance;
+
+
+
+            dataSet.forEach(function (item) {
+                item.temperature = data.baseTemperature + item.variance;
+            });
+
+            var color = d3.scale.quantile()
+           .range(colorGraph)
+           .domain(d3.extent(dataSet, function (d) {
+               return d.temperature;
+           }));
+
+            var xScale = d3.scale.linear()
+              .range([0, ww])
+              .domain(d3.extent(dataSet, function (d) {
+                  return d.year;
+              }));
+
+            var yScale = d3.scale.linear()
+              .range([hh, 0])
+              .domain([12, 0]);
+
+
+
+            var xAxis = d3.svg.axis()
+              .scale(xScale)
+              .orient("bottom")
+              .tickFormat(function (d) {
+                  return "" + d;
+              });
+
+            var yAxis = d3.svg.axis()
+              .scale(yScale)
+              .orient("left")
+              .tickFormat(function (d) {
+                  return months[d - 1];
+              });
+
+
+            var svg = svg.append("g")
+              .attr({
+                  width: ww,
+                  height: hh,
+                  transform: "translate(100, 180)"
+              });
+
+            svg.append("g")
+              .attr({
+                  id: "x-axis",
+                  class: "axis",
+                  transform: "translate(0, " + hh + ")"
+              })
+              .call(xAxis)
+              .append("text")
+              .attr({
+                  x: ww / 2,
+                  y: 50,
+                  class: "axis-title"
+              })
+              .style("text-anchor", "middle")
+              .text("Years");
+
+
+            var yAxisElement = svg.append("g")
+              .attr({
+                  id: "y-axis",
+                  class: "axis y-axis"
+              })
+              .call(yAxis);
+
+            yAxisElement.selectAll("text")
+              .attr({
+                  y: -22
+              });
+
+
+            yAxisElement.append("text")
+              .attr({
+                  transform: "rotate(-90)",
+                  y: -70,
+                  x: -hh / 2,
+                  class: "axis-title"
+              })
+              .text("Months");
+
+
+            svg.selectAll(".cell")
+               .data(dataSet)
+               .enter()
+               .append("rect")
+               .attr({
+                   class: "cell",
+                   x: function (d) { return xScale(d.year); },
+                   y: function (d) { return yScale(d.month - 1); },
+                   width: function (d) { return xScale(d.year) - xScale(d.year - 1); },
+                   height: function (d) { return yScale(d.month) - yScale(d.month - 1); }
+               })
+              .attr('data-month', function (d) {
+                  return d.month;
+              })
+               .attr('data-year', function (d) {
+                   return d.year;
+               })
+               .attr('data-temp', function (d) {
+                   return data.baseTemperature + d.variance;
+               })
+               .style("fill", function (d) { return color(d.temperature); })
+                  .on("mouseover", function (d) {
+                      tooltip.style("visibility", "visible")
+                      tooltip.attr("data-year", d.year)
+                      var t;
+                      if (format(d.temperature) > 0) {
+                          t = "+" + format(d.temperature);
+                      }
+                      else {
+                          t = format(d.temperature);
+                      }
+                      var v;
+                      if (format(d.variance) > 0) {
+                          v = "+" + format(d.variance);
+                      }
+                      else {
+                          v = format(d.variance);
+                      }
+                      tooltip.html("Data:  " + "<br/>" + d.year + "  " + months[d.month - 1] + "<br/>" + t + " ℃" + "<br/>" + v + " ℃")
+                      tooltip.transition()
+                             .duration(100)
+                             .style("opacity", 0.8);
+
+                      tooltip.style("left", (d3.event.pageX + 10) + "px")
+                    .style("top", (d3.event.pageY + 10) + "px");
+                  })
+              .on("mouseout", function (d) {
+                  tooltip.transition()
+                    .duration(100)
+                    .style("opacity", 0);
+              });
+
+
+
+            var legendColors = colorGraph;
+            var lW = 400;
+            var lH = 300 / legendColors.length;
+
+            var variance = data.monthlyVariance.map(function (val) {
+                return val.variance;
+            });
+            var minTemp = data.baseTemperature + Math.min.apply(null, variance);
+            var maxTemp = data.baseTemperature + Math.max.apply(null, variance);
+
+            var legendThreshold = d3.scale.threshold()
+                .domain((function (min, max, count) {
+                    var array = [];
+                    var step = (max - min) / count;
+                    var base = min;
+                    for (var i = 1; i < count; i++) {
+                        array.push(base + i * step);
+                    }
+                    return array;
+                })(minTemp, maxTemp, legendColors.length))
+                .range(legendColors);
+
+            var legendX = d3.scale.linear()
+                .domain([minTemp, maxTemp])
+                .range([0, lW]);
+
+            var legendXAxis = d3.svg.axis()
+                .scale(legendX)
+                .orient("bottom")
+                .tickSize(10, 0)
+                .tickValues(legendThreshold.domain())
+                .tickFormat(d3.format(".1f"));
+
+            var legend = svg.append("g")
+                .attr("id", "legend")
+                .attr("transform", "translate(" + 0 + "," + (80 + hh) + ")");
+
+            legend.append("g")
+              .selectAll("rect")
+                .data(legendThreshold.range().map(function (color) {
+                    var d = legendThreshold.invertExtent(color);
+                    if (d[0] == null) d[0] = legendX.domain()[0];
+                    if (d[1] == null) d[1] = legendX.domain()[1];
+                    return d;
+                }))
+              .enter().append("rect")
+                .style("fill", function (d, i) { return legendThreshold(d[0]) })
+                .attr({
+                    x: function (d, i) { return legendX(d[0]) },
+                    y: 0,
+                    width: function (d, i) { return legendX(d[1]) - legendX(d[0]) },
+                    height: lH
+                });
+
+            legend.append("g")
+                .attr("transform", "translate(" + 0 + "," + lH + ")")
+                .call(legendXAxis);
+
+        });
+    })();
+</script>
